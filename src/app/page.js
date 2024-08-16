@@ -1,94 +1,99 @@
+"use client";
 import Image from "next/image";
 import styles from "./page.module.css";
+import { useTransform, useScroll, motion } from "framer-motion";
+import { useEffect, useRef, useState } from "react";
+import Lenis from "lenis";
 
 export default function Home() {
+  const container = useRef(null);
+
+  const [dimension, setDimension] = useState({ width: 0, height: 0 });
+
+  // useScroll tracks progression of the scroll
+  const { scrollYProgress } = useScroll({
+    target: container,
+    // tracker starts at start (start of target) and end (of window) and ends at (end of target) and start (of window)
+    offset: ["start end", "end start"],
+  });
+
+  // height of the window
+  const { height } = dimension;
+
+  // useTransform transforms value of scroll progression into new values, used for parallax ( [0,1] transformed to [0, height* var] )
+  // 4 y values for 4 columns of images
+  const y = useTransform(scrollYProgress, [0, 1], [0, height * 2]);
+  const y2 = useTransform(scrollYProgress, [0, 1], [0, height * 3.3]);
+  const y3 = useTransform(scrollYProgress, [0, 1], [0, height * 1.25]);
+  const y4 = useTransform(scrollYProgress, [0, 1], [0, height * 3]);
+
+  useEffect(() => {
+    // smooth scroll component
+    const lenis = new Lenis();
+
+    // raf called every frame for internal use
+    const raf = (time) => {
+      lenis.raf(time);
+      // tells browser you wish to perform animation
+      requestAnimationFrame(raf);
+    };
+
+    const resize = () => {
+      setDimension({ width: window.innerWidth, height: window.innerHeight });
+    };
+
+    window.addEventListener("resize", resize);
+    requestAnimationFrame(raf);
+    resize();
+
+    return () => {
+      window.removeEventListener("resize", resize);
+    };
+  }, []);
+
+  // array of 12 image assets
+  const images = [];
+  function imageList() {
+    for (let i = 1; i <= 12; i++) {
+      let newImage = i + ".jpg";
+      images.push(newImage);
+    }
+  }
+
+  function createColumns(images, itemsPerColumn, yVals) {
+    const columns = [];
+
+    for (let i = 0; i < images.length; i += itemsPerColumn) {
+      let columnImages = images.slice(i, i + itemsPerColumn);
+      const yVal = yVals[Math.floor(i / itemsPerColumn)];
+      columns.push(<Column images={columnImages} key={i} y={yVal} />);
+    }
+
+    return columns;
+  }
+
+  const yVals = [y, y2, y3, y4];
+
+  const Column = ({ images, y }) => {
+    return (
+      <motion.div style={{ y }} className={styles.column}>
+        {images.map((src, index) => {
+          return (
+            <div key={index} className={styles.imageContainer}>
+              <Image src={`/images/${src}`} fill alt="unsplash-image" />
+            </div>
+          );
+        })}
+      </motion.div>
+    );
+  };
+
+  imageList();
+
   return (
     <main className={styles.main}>
-      <div className={styles.description}>
-        <p>
-          Get started by editing&nbsp;
-          <code className={styles.code}>src/app/page.js</code>
-        </p>
-        <div>
-          <a
-            href="https://vercel.com?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            By{" "}
-            <Image
-              src="/vercel.svg"
-              alt="Vercel Logo"
-              className={styles.vercelLogo}
-              width={100}
-              height={24}
-              priority
-            />
-          </a>
-        </div>
-      </div>
-
-      <div className={styles.center}>
-        <Image
-          className={styles.logo}
-          src="/next.svg"
-          alt="Next.js Logo"
-          width={180}
-          height={37}
-          priority
-        />
-      </div>
-
-      <div className={styles.grid}>
-        <a
-          href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className={styles.card}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2>
-            Docs <span>-&gt;</span>
-          </h2>
-          <p>Find in-depth information about Next.js features and API.</p>
-        </a>
-
-        <a
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className={styles.card}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2>
-            Learn <span>-&gt;</span>
-          </h2>
-          <p>Learn about Next.js in an interactive course with&nbsp;quizzes!</p>
-        </a>
-
-        <a
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className={styles.card}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2>
-            Templates <span>-&gt;</span>
-          </h2>
-          <p>Explore starter templates for Next.js.</p>
-        </a>
-
-        <a
-          href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className={styles.card}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2>
-            Deploy <span>-&gt;</span>
-          </h2>
-          <p>
-            Instantly deploy your Next.js site to a shareable URL with Vercel.
-          </p>
-        </a>
+      <div ref={container} className={styles.gallery}>
+        {createColumns(images, 3, yVals)}
       </div>
     </main>
   );
